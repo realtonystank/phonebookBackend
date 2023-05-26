@@ -1,7 +1,6 @@
 {
   "name": "phonebook-server",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -12,10 +11,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.2",
     "morgan": "^1.10.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realtonystank/phonebookBackend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/realtonystank/phonebookBackend/issues"
+  },
+  "homepage": "https://github.com/realtonystank/phonebookBackend#readme",
+  "description": ""
 }
