@@ -1,36 +1,14 @@
+require("dotenv").config();
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
+const Person = require("./models/personModel");
 
 morgan.token("body", (req, res) => {
   return JSON.stringify(req.body);
 });
 
 const app = express();
-let records = [
-  {
-    id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-];
-
-const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.static("build"));
@@ -54,53 +32,84 @@ app.use(
 );
 
 app.get("/api/persons", (req, res) => {
-  res.json(records);
+  Person.find({}).then((result) => {
+    res.json(result);
+  });
 });
 
-app.get("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const matchedRecord = records.find((record) => record.id === id);
-  if (matchedRecord) {
-    return res.json(matchedRecord);
-  } else {
-    res.status(404).end();
-  }
+app.get("/api/persons/:id", (req, res, next) => {
+  Person.findById(req.params.id)
+    .then((result) => res.json(result))
+    .catch((err) => next(err));
 });
 app.get("/api/info", (req, res) => {
-  res.send(
-    `
-      <p>Phonebook has info for ${records.length} people</p>
-      <p>${new Date().toUTCString()}</p>
-  `
-  );
+  Person.find({}).then((result) => {
+    res.send(`<p>Database has <strong>${result.length}</strong> records. </p>`);
+  });
 });
 
-app.post("/api/persons/", (req, res) => {
+app.post("/api/persons/", (req, res, next) => {
   const body = req.body;
-  if (!body.name || !body.number) {
-    return res.status(400).json({ error: "name or number missing" });
-  }
-  const matchingName = records.find((record) => record.name === body.name)
-    ? true
-    : false;
-  if (matchingName) {
-    return res.status(400).json({ error: "name must be unique" });
-  }
 
-  const id = Math.floor(Math.random() * 1000000);
-  const person = {
-    id,
+  const person = new Person({
+    name: req.body.name,
+    number: req.body.number,
+  });
+
+  person
+    .save()
+    .then((result) => {
+      res.json(result);
+    })
+    .catch((err) => next(err));
+});
+
+app.put("/api/persons/:id", (req, res, next) => {
+  const updatedPerson = {
     name: req.body.name,
     number: req.body.number,
   };
-  records = records.concat(person);
-  res.status(201).json(person);
+
+  Person.findByIdAndUpdate(req.params.id, updatedPerson, {
+    new: true,
+    runValidators: true,
+    context: "query",
+  })
+    .then((result) => res.json(result))
+    .catch((err) => next(err));
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  records = records.filter((record) => record.id !== id);
-  res.status(204).end();
+app.delete("/api/persons/:id", (req, res, next) => {
+  Person.findByIdAndDelete(req.params.id)
+    .then((result) => {
+      if (result) {
+        res.status(204).end();
+      } else {
+        res.status(404).json({ error: "already deleted" });
+      }
+    })
+    .catch((err) => {
+      next(err);
+    });
 });
+
+const unknownRouteHandler = (req, res) => {
+  res.status(404).json({ error: "invalid route" });
+};
+
+app.use(unknownRouteHandler);
+
+const errorHandler = (err, req, res, next) => {
+  if (err.name === "CastError") {
+    return res.status(400).json({ error: "malformatted id" });
+  } else if (err.name === "ValidationError") {
+    return res.status(400).json({ error: err.message });
+  }
+  next(err);
+};
+
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => console.log(`Server running on PORT:${PORT}`));
